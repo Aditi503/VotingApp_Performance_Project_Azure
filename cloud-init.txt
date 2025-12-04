@@ -2,6 +2,8 @@
 package_upgrade: true
 packages:
   - nginx
+  - python3.12
+  - python3.12-venv
   - python3-pip
   - unzip
   - redis-server
@@ -23,4 +25,5 @@ write_files:
 runcmd:
   - sudo unlink /etc/nginx/sites-enabled/default
   - sudo ln -s /etc/nginx/sites-available/reverse-proxy.conf /etc/nginx/sites-enabled/reverse-proxy.conf
+  - python3.12 -m pip install --upgrade pip
   - sudo service nginx restart
