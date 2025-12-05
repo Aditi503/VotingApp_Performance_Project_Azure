@@ -59,31 +59,58 @@ az vmss create \
   --name $vmssName \
   --image $osType \
   --vm-sku $vmSize \
-  --nsg $nsgName \
-  --subnet $subnetName \
-  --vnet-name $vnetName \
-  --backend-pool-name $bePoolName \
-  --storage-sku $storageType \
-  --load-balancer $lbName \
-  --custom-data cloud-init.txt \
-  --upgrade-policy-mode automatic \
+  --orchestration-mode Uniform \
+  --instance-count 2 \
   --admin-username $adminName \
   --generate-ssh-keys \
-  --verbose 
+  --custom-data cloud-init.txt \
+  --upgrade-policy-mode automatic \
+  --lb "" \
+  --public-ip-address "" \
+  --verbose
 
 echo "VM scale set created: $vmssName"
 
+# Get the VMSS VNet and Subnet names (auto-created by the command above)
+vnetNameAuto="${vmssName}VNET"
+subnetNameAuto="${vmssName}Subnet"
+
+# Create Load Balancer
+echo "STEP 3.1 - Creating load balancer $lbName"
+
+az network lb create \
+  --resource-group $resourceGroup \
+  --name $lbName \
+  --sku Standard \
+  --backend-pool-name $bePoolName \
+  --frontend-ip-name loadBalancerFrontEnd \
+  --public-ip-address "${lbName}-pip" \
+  --verbose
+
+echo "Load balancer created: $lbName"
+
+# Add VMSS to Load Balancer Backend Pool
+echo "STEP 3.2 - Adding VMSS to load balancer backend pool"
+
+az vmss update \
+  --resource-group $resourceGroup \
+  --name $vmssName \
+  --add virtualMachineProfile.networkProfile.networkInterfaceConfigurations[0].ipConfigurations[0].loadBalancerBackendAddressPools "{\"id\": \"/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$resourceGroup/providers/Microsoft.Network/loadBalancers/$lbName/backendAddressPools/$bePoolName\"}" \
+  --verbose
+
+echo "VMSS added to load balancer backend pool"
+
 # Associate NSG with VMSS subnet
-echo "STEP 4 - Associating NSG: $nsgName with subnet: $subnetName"
+echo "STEP 4 - Associating NSG: $nsgName with subnet: $subnetNameAuto"
 
 az network vnet subnet update \
 --resource-group $resourceGroup \
---name $subnetName \
---vnet-name $vnetName \
+--name $subnetNameAuto \
+--vnet-name $vnetNameAuto \
 --network-security-group $nsgName \
 --verbose
 
-echo "NSG: $nsgName associated with subnet: $subnetName"
+echo "NSG: $nsgName associated with subnet: $subnetNameAuto"
 
 # Create Health Probe
 echo "STEP 5 - Creating health probe $probeName"

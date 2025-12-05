@@ -5,7 +5,7 @@ stages:
   jobs:
   - job: Build
     pool:
-      name: Hosted Ubuntu 1604
+      name: Hosted Ubuntu 2204
     steps:
     - task: ArchiveFiles@2
       displayName: 'Archive Azure Vote'
@@ -17,11 +17,11 @@ stages:
     - publish: $(Build.ArtifactStagingDirectory)/$(Build.BuildId)-azurevote.zip
       displayName: 'Upload Package'
       artifact: drop-azurevote
-- stage:
+- stage: Deploy
   jobs:
   - deployment: VMDeploy
     pool:
-      vmImage: 'Ubuntu-16.04'
+      vmImage: 'ubuntu-22.04'
     displayName: Deploy to VMSS
     environment:
       name: ACDND-C4-Project
@@ -30,16 +30,23 @@ stages:
       runOnce:
         deploy:
           steps:
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.12'
+            displayName: 'Use Python 3.12'
           - task: Bash@3
             inputs:
               targetType: 'inline'
               script: |
                 #! /bin/bash
 
-                pip3 install redis
-                pip3 install opencensus-ext-azure
-                pip3 install flask
-                pip3 install opencensus-ext-flask
+                pip3 install redis==5.0.1
+                pip3 install opencensus==0.11.4
+                pip3 install opencensus-ext-azure==1.1.13
+                pip3 install Flask==2.3.3
+                pip3 install opencensus-ext-flask==0.8.1
+                pip3 install opencensus-ext-logging==0.1.1
+                pip3 install Werkzeug==2.3.7
 
                 cd ~/
                 DIR=/home/udacityadmin/app
