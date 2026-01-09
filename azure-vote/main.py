@@ -10,7 +10,6 @@ from datetime import datetime
 
 # App Insights
 from opencensus.ext.flask.flask_middleware import FlaskMiddleware
-from applicationinsights.flask.ext import AppInsights
 from applicationinsights import TelemetryClient
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from opencensus.ext.azure.metrics_exporter import MetricsExporter
@@ -34,7 +33,7 @@ show_host = os.environ.get('SHOWHOST', app.config.get('SHOWHOST'))
 APPLICATIONINSIGHTS_CONNECTION_STRING = os.environ.get('APPLICATIONINSIGHTS_CONNECTION_STRING', app.config.get('APPLICATIONINSIGHTS_CONNECTION_STRING'))
 
 # Standardize Connection String
-conn_str = f'InstrumentationKey={instrumentation_key}'
+conn_str = APPLICATIONINSIGHTS_CONNECTION_STRING
 
 # Requests
 # middleware = AppInsights(app)
@@ -44,12 +43,12 @@ FlaskMiddleware(
     sampler=ProbabilitySampler(1.0)
 )
 
-tc = TelemetryClient(instrumentation_key)
+tc = TelemetryClient(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING)
 
 # Logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-log_handler = AzureLogHandler(connection_string=conn_str)
+log_handler = AzureLogHandler(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING)
 log_handler.lock = threading.Lock()  
 logger.addHandler(log_handler)
 
@@ -83,7 +82,7 @@ vote_view = view_module.View(
 view_manager.register_view(vote_view)
 
 # Redis Connection
-r = redis.Redis()
+r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 # Change title to host name to demo NLB
 if app.config['SHOWHOST'] == "true":
@@ -99,13 +98,13 @@ def index():
     if request.method == 'GET':
 
         # Get current values
-        vote1 = r.get(button1).decode('utf-8')
+        vote1 = r.get(button1)
         with tracer.span(name="cat_vote_read") as span:
             span.add_attribute("vote.type", "Cats")
             span.add_attribute("vote.count", vote1)
 
 
-        vote2 = r.get(button2).decode('utf-8')
+        vote2 = r.get(button2)
         with tracer.span(name="dog_vote_read") as span:
             span.add_attribute("vote.type", "Dogs")
             span.add_attribute("vote.count", vote2)
@@ -122,11 +121,11 @@ def index():
             r.set(button1,0)
             r.set(button2,0)
 
-            vote1 = r.get(button1).decode('utf-8')
+            vote1 = r.get(button1)
             properties = {'custom_dimensions': {'Cats Vote': vote1}}
             logger.info("Cat votes reset", extra=properties)
 
-            vote2 = r.get(button2).decode('utf-8')
+            vote2 = r.get(button2)
             properties = {'custom_dimensions': {'Dogs Vote': vote2}}
             logger.info("Dog votes reset", extra=properties)
 
@@ -164,8 +163,8 @@ def index():
             tc.flush()
 
             # Get current values
-            vote1 = r.get(button1).decode('utf-8')
-            vote2 = r.get(button2).decode('utf-8')
+            vote1 = r.get(button1)
+            vote2 = r.get(button2)
             
             # Return results
             return render_template("index.html", value1=int(vote1), value2=int(vote2), button1=button1, button2=button2, title=title)
