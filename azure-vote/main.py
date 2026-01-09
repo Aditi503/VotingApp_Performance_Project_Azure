@@ -11,6 +11,7 @@ from datetime import datetime
 # App Insights
 from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 from applicationinsights.flask.ext import AppInsights
+from applicationinsights import TelemetryClient
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from opencensus.ext.azure.metrics_exporter import MetricsExporter
 from opencensus.ext.azure.trace_exporter import AzureExporter
@@ -42,6 +43,8 @@ FlaskMiddleware(
     exporter=AzureExporter(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING),
     sampler=ProbabilitySampler(1.0)
 )
+
+tc = TelemetryClient(instrumentation_key)
 
 # Logging
 logger = logging.getLogger(__name__)
@@ -145,15 +148,20 @@ def index():
 
 
             if vote == button1:
-                logger.info(
-                    "Cats vote submitted",
-                    extra={"custom_dimensions": {"VoteType": "Cats"}}
+                tc.track_event(
+                    "VoteSubmitted",
+                    {"Animal": "Cats"}
                 )
+                logger.info("Cats vote submitted")
+
             elif vote == button2:
-                logger.info(
-                    "Dogs vote submitted",
-                    extra={"custom_dimensions": {"VoteType": "Dogs"}}
+                tc.track_event(
+                    "VoteSubmitted",
+                    {"Animal": "Dogs"}
                 )
+                logger.info("Dogs vote submitted")
+
+            tc.flush()
 
             # Get current values
             vote1 = r.get(button1).decode('utf-8')
