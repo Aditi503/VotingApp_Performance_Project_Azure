@@ -9,6 +9,7 @@ import threading
 from datetime import datetime
 
 # App Insights
+from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 from applicationinsights.flask.ext import AppInsights
 from opencensus.ext.azure.log_exporter import AzureLogHandler
 from opencensus.ext.azure.metrics_exporter import MetricsExporter
@@ -24,12 +25,18 @@ button1 = os.environ.get('VOTE1VALUE', app.config.get('VOTE1VALUE'))
 button2 = os.environ.get('VOTE2VALUE', app.config.get('VOTE2VALUE'))
 title = os.environ.get('TITLE', app.config.get('TITLE'))
 show_host = os.environ.get('SHOWHOST', app.config.get('SHOWHOST'))
+APPLICATIONINSIGHTS_CONNECTION_STRING = os.environ.get('APPLICATIONINSIGHTS_CONNECTION_STRING', app.config.get('APPLICATIONINSIGHTS_CONNECTION_STRING'))
 
 # Standardize Connection String
 conn_str = f'InstrumentationKey={instrumentation_key}'
 
 # Requests
-middleware = AppInsights(app)
+# middleware = AppInsights(app)
+FlaskMiddleware(
+    app,
+    exporter=AzureExporter(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING),
+    sampler=ProbabilitySampler(1.0)
+)
 
 # Logging
 logger = logging.getLogger(__name__)
