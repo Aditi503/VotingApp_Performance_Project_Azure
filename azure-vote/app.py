@@ -182,6 +182,6 @@ def index():
             # Return results
             return render_template("index.html", value1=int(vote1), value2=int(vote2), button1=button1, button2=button2, title=title)
 
-if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5000, threaded=True, debug=True)
+# if __name__ == "__main__":
+#     app.run(host='0.0.0.0', port=5000, threaded=True)
 
