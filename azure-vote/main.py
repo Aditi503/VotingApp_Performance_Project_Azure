@@ -16,6 +16,11 @@ from opencensus.ext.azure.metrics_exporter import MetricsExporter
 from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.trace.tracer import Tracer
 from opencensus.trace.samplers import ProbabilitySampler
+from opencensus.stats import stats as stats_module
+from opencensus.stats import measure as measure_module
+from opencensus.stats import view as view_module
+from opencensus.stats import aggregation as aggregation_module
+
 app = Flask(__name__)
 
 # Load configurations FIRST
@@ -54,6 +59,26 @@ tracer = Tracer(
     sampler=ProbabilitySampler(1.0)
 )
 
+stats = stats_module.stats
+view_manager = stats.view_manager
+stats_recorder = stats.stats_recorder
+
+vote_measure = measure_module.MeasureInt(
+    "votes_count",
+    "Number of votes",
+    "votes"
+)
+
+vote_view = view_module.View(
+    "votes_count_view",
+    "Votes count",
+    [],
+    vote_measure,
+    aggregation_module.CountAggregation()
+)
+
+view_manager.register_view(vote_view)
+
 # Redis Connection
 r = redis.Redis()
 
@@ -72,12 +97,16 @@ def index():
 
         # Get current values
         vote1 = r.get(button1).decode('utf-8')
-        with tracer.span(name="cat_vote_read"):
-            pass
+        with tracer.span(name="cat_vote_read") as span:
+            span.add_attribute("vote.type", "Cats")
+            span.add_attribute("vote.count", vote1)
+
 
         vote2 = r.get(button2).decode('utf-8')
-        with tracer.span(name="dog_vote_read"):
-            pass
+        with tracer.span(name="dog_vote_read") as span:
+            span.add_attribute("vote.type", "Dogs")
+            span.add_attribute("vote.count", vote2)
+
 
         # Return index with values
         return render_template("index.html", value1=int(vote1), value2=int(vote2), button1=button1, button2=button2, title=title)
@@ -106,10 +135,30 @@ def index():
             vote = request.form['vote']
             r.incr(vote,1)
 
+            mmap = stats_recorder.new_measurement_map()
+            mmap.measure_int_put(vote_measure, 1)
+            mmap.record()
+
+            with tracer.span(name="vote_event") as span:
+                span.add_attribute("vote.choice", vote)
+                span.add_attribute("event.time", str(datetime.utcnow()))
+
+
+            if vote == button1:
+                logger.info(
+                    "Cats vote submitted",
+                    extra={"custom_dimensions": {"VoteType": "Cats"}}
+                )
+            elif vote == button2:
+                logger.info(
+                    "Dogs vote submitted",
+                    extra={"custom_dimensions": {"VoteType": "Dogs"}}
+                )
+
             # Get current values
             vote1 = r.get(button1).decode('utf-8')
             vote2 = r.get(button2).decode('utf-8')
-
+            
             # Return results
             return render_template("index.html", value1=int(vote1), value2=int(vote2), button1=button1, button2=button2, title=title)
 
