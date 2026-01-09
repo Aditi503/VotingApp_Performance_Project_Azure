@@ -15,11 +15,7 @@ from opencensus.ext.azure.metrics_exporter import MetricsExporter
 from opencensus.ext.azure.trace_exporter import AzureExporter
 from opencensus.trace.tracer import Tracer
 from opencensus.trace.samplers import ProbabilitySampler
-
 app = Flask(__name__)
-
-# Requests
-middleware = AppInsights(app)
 
 # Load configurations FIRST
 app.config.from_pyfile('config_file.cfg')
@@ -31,6 +27,9 @@ show_host = os.environ.get('SHOWHOST', app.config.get('SHOWHOST'))
 
 # Standardize Connection String
 conn_str = f'InstrumentationKey={instrumentation_key}'
+
+# Requests
+middleware = AppInsights(app)
 
 # Logging
 logger = logging.getLogger(__name__)
