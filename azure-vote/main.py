@@ -43,7 +43,7 @@ FlaskMiddleware(
     sampler=ProbabilitySampler(1.0)
 )
 
-tc = TelemetryClient(connection_string=APPLICATIONINSIGHTS_CONNECTION_STRING)
+tc = TelemetryClient(instrumentation_key)
 
 # Logging
 logger = logging.getLogger(__name__)
